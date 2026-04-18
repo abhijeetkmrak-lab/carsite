@@ -1,101 +1,100 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { usePreload } from "@/hooks/usePreload";
+import dynamic from "next/dynamic";
+
+// SSR off — both components use window/canvas APIs
+const ScrollyCanvas = dynamic(() => import("@/components/ScrollyCanvas"), { ssr: false });
+const GarageUI      = dynamic(() => import("@/components/GarageUI"),      { ssr: false });
+
+export default function HomePage() {
+  const { images, isLoaded, progress } = usePreload();
+
+  // ── Global state ──────────────────────────────────────────────────────────
+  const [isGarageOpen, setIsGarageOpen] = useState(false);
+  const [tintColor,    setTintColor]    = useState<string | null>(null);
+
+  // Lock / unlock body scroll
+  useEffect(() => {
+    document.body.style.overflow = isGarageOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [isGarageOpen]);
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <main className="bg-[#0a0a0a] min-h-screen">
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+      {/* ── Loading screen ─────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {!isLoaded && (
+          <motion.div
+            key="loader"
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0, transition: { duration: 0.7, ease: "easeInOut" } }}
+            className="fixed inset-0 z-50 bg-[#0a0a0a] flex flex-col items-center justify-center gap-6"
           >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+            <span
+              className="text-white font-black text-4xl tracking-[-0.05em]"
+              style={{ fontFamily: "'Inter', sans-serif" }}
+            >
+              AUTO<span className="text-red-500">X</span>
+            </span>
+
+            <p className="text-white/25 text-[10px] uppercase tracking-[0.42em]">
+              Loading Experience
+            </p>
+
+            {/* 1 px glassmorphism progress track */}
+            <div className="w-52 h-[1px] bg-white/[0.06] rounded-full overflow-hidden">
+              <motion.div
+                className="h-full bg-gradient-to-r from-red-700 to-red-400 rounded-full"
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: progress }}
+                style={{ transformOrigin: "left" }}
+                transition={{ ease: "linear" }}
+              />
+            </div>
+
+            <p className="text-white/18 text-xs tabular-nums">{Math.round(progress * 100)}%</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── ScrollyCanvas — always mounted after loading; stays behind GarageUI ── */}
+      {isLoaded && (
+        <ScrollyCanvas
+          images={images}
+          onGarageEnter={() => setIsGarageOpen(true)}
+          isGarageOpen={isGarageOpen}
+        />
+      )}
+
+      {/* ── Paint-colour tint overlay (CSS multiply between canvas & UI) ─────── */}
+      <AnimatePresence>
+        {isGarageOpen && tintColor && (
+          <motion.div
+            key="tint"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.26 }}
+            exit={{   opacity: 0 }}
+            transition={{ duration: 0.55 }}
+            className="fixed inset-0 pointer-events-none z-[5]"
+            style={{ background: tintColor, mixBlendMode: "multiply" }}
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
+        )}
+      </AnimatePresence>
+
+      {/* ── Garage UI — slides in after "Enter Garage" is pressed ────────────── */}
+      <AnimatePresence>
+        {isGarageOpen && (
+          <GarageUI
+            onColorChange={setTintColor}
+            onClose={() => setIsGarageOpen(false)}
           />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+        )}
+      </AnimatePresence>
+
+    </main>
   );
 }
