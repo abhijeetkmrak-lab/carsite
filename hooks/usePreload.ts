@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 // Matches your actual files: frame_000_delay-0.041s.webp … frame_191_delay-0.041s.webp
 export const FRAME_COUNT = 192;
 const DELAY_STRING = "0.041s";
-const SEQUENCE_PATH = "/Sequence";
+const SEQUENCE_PATH = "/Carsequence";
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
 export function getFrameSrc(index: number): string {
@@ -25,8 +25,7 @@ export interface UsePreloadResult {
 }
 
 export function usePreload(): UsePreloadResult {
-  // Keep images in a ref so they are never garbage-collected between renders.
-  const imagesRef = useRef<HTMLImageElement[]>([]);
+  const [images, setImages] = useState<HTMLImageElement[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [progress, setProgress] = useState(0);
 
@@ -39,7 +38,7 @@ export function usePreload(): UsePreloadResult {
       loaded += 1;
       setProgress(loaded / total);
       if (loaded === total) {
-        imagesRef.current = imgs;
+        setImages(imgs);
         setIsLoaded(true);
       }
     };
@@ -48,11 +47,10 @@ export function usePreload(): UsePreloadResult {
       const img = new Image();
       img.src = getFrameSrc(i);
       img.onload = onLoad;
-      img.onerror = onLoad; // count errors too so we don't stall
+      img.onerror = onLoad;
       imgs[i] = img;
     }
 
-    // Cleanup: abort any remaining loads if the component unmounts early.
     return () => {
       for (const img of imgs) {
         img.src = "";
@@ -61,7 +59,7 @@ export function usePreload(): UsePreloadResult {
   }, []);
 
   return {
-    images: imagesRef.current,
+    images,
     isLoaded,
     progress,
   };

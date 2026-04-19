@@ -5,9 +5,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { usePreload } from "@/hooks/usePreload";
 import dynamic from "next/dynamic";
 
-// SSR off — both components use window/canvas APIs
+// SSR off — these components use window/canvas APIs
 const ScrollyCanvas = dynamic(() => import("@/components/ScrollyCanvas"), { ssr: false });
 const GarageUI      = dynamic(() => import("@/components/GarageUI"),      { ssr: false });
+
+// These are safe for SSR but we lazy-load to keep initial bundle small
+import BrandStory    from "@/components/BrandStory";
+import Testimonials  from "@/components/Testimonials";
+import Footer        from "@/components/Footer";
 
 export default function HomePage() {
   const { images, isLoaded, progress } = usePreload();
@@ -61,7 +66,7 @@ export default function HomePage() {
         )}
       </AnimatePresence>
 
-      {/* ── ScrollyCanvas — always mounted after loading; stays behind GarageUI ── */}
+      {/* ── Phase 1: ScrollyCanvas — 500 vh sticky scroller ────────────────── */}
       {isLoaded && (
         <ScrollyCanvas
           images={images}
@@ -70,7 +75,7 @@ export default function HomePage() {
         />
       )}
 
-      {/* ── Paint-colour tint overlay (CSS multiply between canvas & UI) ─────── */}
+      {/* ── Paint-colour tint overlay (CSS multiply between canvas & UI) ───── */}
       <AnimatePresence>
         {isGarageOpen && tintColor && (
           <motion.div
@@ -85,7 +90,7 @@ export default function HomePage() {
         )}
       </AnimatePresence>
 
-      {/* ── Garage UI — slides in after "Enter Garage" is pressed ────────────── */}
+      {/* ── Phase 2: Garage UI — slides in after "Enter Garage" ────────────── */}
       <AnimatePresence>
         {isGarageOpen && (
           <GarageUI
@@ -94,6 +99,15 @@ export default function HomePage() {
           />
         )}
       </AnimatePresence>
+
+      {/* ── Phase 3: Below-the-fold content (normal document flow) ─────────── */}
+      {isLoaded && (
+        <>
+          <BrandStory />
+          <Testimonials />
+          <Footer />
+        </>
+      )}
 
     </main>
   );
