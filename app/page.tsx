@@ -13,6 +13,7 @@ const GarageUI      = dynamic(() => import("@/components/GarageUI"),      { ssr:
 import BrandStory    from "@/components/BrandStory";
 import Testimonials  from "@/components/Testimonials";
 import Footer        from "@/components/Footer";
+import Navbar        from "@/components/Navbar";
 
 export default function HomePage() {
   const { images, isLoaded, progress } = usePreload();
@@ -29,6 +30,7 @@ export default function HomePage() {
 
   return (
     <main className="bg-[#0a0a0a] min-h-screen">
+      <Navbar isGarageOpen={isGarageOpen} onGarageClick={() => setIsGarageOpen(!isGarageOpen)} />
 
       {/* ── Loading screen ─────────────────────────────────────────────────── */}
       <AnimatePresence>
