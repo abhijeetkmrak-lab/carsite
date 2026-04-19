@@ -11,6 +11,7 @@ import {
 } from "@/utils/imageProcessor";
 import type { Finish, LightMode } from "@/utils/imageProcessor";
 import { isolateCarFromPhoto } from "@/utils/carSegmentation";
+import { useAuth } from "@/context/AuthContext";
 
 interface PaintStudioProps {
   userImage: string;
@@ -39,6 +40,7 @@ const FINISHES: { id: Finish; label: string; description: string }[] = [
 export default function PaintStudio({ userImage, onClose, isGarageOpen, onColorChange }: PaintStudioProps) {
   void onColorChange;
 
+  const { user, openAuthModal } = useAuth();
   const [selectedColor, setSelectedColor] = useState(COLORS[2].hex);
   const [selectedFinish, setSelectedFinish] = useState<Finish>("glossy");
   const [lightMode, setLightMode] = useState<LightMode>("white");
@@ -47,6 +49,11 @@ export default function PaintStudio({ userImage, onClose, isGarageOpen, onColorC
   const [aiProcessedImage, setAiProcessedImage] = useState<string | null>(null);
 
   const handlePaint = async () => {
+    if (!user) {
+      openAuthModal();
+      return;
+    }
+    
     if (isLoading) return;
     setIsLoading(true);
     try {
@@ -97,8 +104,6 @@ export default function PaintStudio({ userImage, onClose, isGarageOpen, onColorC
         <motion.div
           layout
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="relative min-h-[430px] flex-1 overflow-hidden bg-[#060606]"
-          animate={{ flexBasis: isPainting ? "100%" : "70%" }}
           className="relative min-h-[430px] flex-1 overflow-hidden bg-[#060606]"
           animate={{ flexBasis: isPainting ? "100%" : "70%" }}
         >
