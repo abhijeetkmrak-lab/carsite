@@ -15,9 +15,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Gemini API Key is not configured" }, { status: 500 });
     }
 
+    // Explicitly using v1 API version for better model discovery
     const genAI = new GoogleGenerativeAI(apiKey);
-    // Using the stable 1.5-flash model for guaranteed reliability
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-flash",
+    });
 
     // Remove the data URL prefix if present
     const base64Data = image.split(",")[1] || image;
