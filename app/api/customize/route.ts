@@ -16,8 +16,8 @@ export async function POST(req: NextRequest) {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    // Using the specific model version mentioned (3.1 flash image preview)
-    const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-image-preview" });
+    // Using the stable 1.5-flash model for reliable image generation
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     // Remove the data URL prefix if present
     const base64Data = image.split(",")[1] || image;
