@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, ChevronRight, Save } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 interface NavbarProps {
   isGarageOpen?: boolean;
@@ -17,6 +18,7 @@ const navLinks = [
 ];
 
 export default function Navbar({ isGarageOpen = false, onGarageClick }: NavbarProps) {
+  const { user, openAuthModal, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [hoveredLink, setHoveredLink] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
@@ -26,6 +28,12 @@ export default function Navbar({ isGarageOpen = false, onGarageClick }: NavbarPr
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  const handleLinkClick = (link: { name: string; href: string }) => {
+    if (link.name === "Login") {
+      openAuthModal();
+    }
+  };
 
   return (
     <motion.header
@@ -83,14 +91,24 @@ export default function Navbar({ isGarageOpen = false, onGarageClick }: NavbarPr
             )}
           </motion.button>
 
-          {navLinks.slice(3).map((link) => (
-            <NavLink
-              key={link.name}
-              link={link}
-              isHovered={hoveredLink === link.name}
-              onHover={() => setHoveredLink(link.name)}
-              onLeave={() => setHoveredLink(null)}
-            />
+          {user ? (
+            <button
+              onClick={logout}
+              className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/60 hover:text-red-500 transition-colors py-2"
+            >
+              Sign Out ({user.email.split('@')[0]})
+            </button>
+          ) : (
+            navLinks.slice(3).map((link) => (
+              <NavLink
+                key={link.name}
+                link={link}
+                isHovered={hoveredLink === link.name}
+                onHover={() => setHoveredLink(link.name)}
+                onLeave={() => setHoveredLink(null)}
+                onClick={() => handleLinkClick(link)}
+              />
+            )
           ))}
         </div>
 
@@ -125,11 +143,16 @@ export default function Navbar({ isGarageOpen = false, onGarageClick }: NavbarPr
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 * i }}
-                href={link.href}
+                href={link.name === "Login" ? undefined : link.href}
                 className="text-4xl font-black text-white uppercase tracking-tighter"
-                onClick={() => setIsOpen(false)}
+                onClick={() => {
+                  if (link.name === "Login") {
+                    openAuthModal();
+                  }
+                  setIsOpen(false);
+                }}
               >
-                {link.name}
+                {link.name === "Login" && user ? `Sign Out` : link.name}
               </motion.a>
             ))}
             <motion.button
@@ -155,20 +178,17 @@ function NavLink({
   link, 
   isHovered, 
   onHover, 
-  onLeave 
+  onLeave,
+  onClick
 }: { 
   link: { name: string; href: string }; 
   isHovered: boolean; 
   onHover: () => void; 
   onLeave: () => void;
+  onClick?: () => void;
 }) {
-  return (
-    <a
-      href={link.href}
-      onMouseEnter={onHover}
-      onMouseLeave={onLeave}
-      className="relative text-[11px] font-bold uppercase tracking-[0.2em] text-white/60 hover:text-white transition-colors py-2"
-    >
+  const content = (
+    <>
       {link.name}
       {isHovered && (
         <motion.div
@@ -179,6 +199,30 @@ function NavLink({
           exit={{ opacity: 0 }}
         />
       )}
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button
+        onClick={onClick}
+        onMouseEnter={onHover}
+        onMouseLeave={onLeave}
+        className="relative text-[11px] font-bold uppercase tracking-[0.2em] text-white/60 hover:text-white transition-colors py-2"
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <a
+      href={link.href}
+      onMouseEnter={onHover}
+      onMouseLeave={onLeave}
+      className="relative text-[11px] font-bold uppercase tracking-[0.2em] text-white/60 hover:text-white transition-colors py-2"
+    >
+      {content}
     </a>
   );
 }

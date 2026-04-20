@@ -20,6 +20,9 @@ export const metadata: Metadata = {
   },
 };
 
+import { AuthProvider } from "@/context/AuthContext";
+import { AuthModal } from "@/components/AuthModal";
+
 export default function RootLayout({
   children,
 }: {
@@ -33,7 +36,10 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body className="bg-black text-white antialiased overflow-x-hidden font-sans">
-        {children}
+        <AuthProvider>
+          {children}
+          <AuthModal />
+        </AuthProvider>
       </body>
     </html>
   );

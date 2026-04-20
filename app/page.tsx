@@ -7,13 +7,14 @@ import dynamic from "next/dynamic";
 
 // SSR off — these components use window/canvas APIs
 const ScrollyCanvas = dynamic(() => import("@/components/ScrollyCanvas"), { ssr: false });
-const GarageUI      = dynamic(() => import("@/components/GarageUI"),      { ssr: false });
+const PaintStudio   = dynamic(() => import("@/components/PaintStudio"),   { ssr: false });
 
 // These are safe for SSR but we lazy-load to keep initial bundle small
 import BrandStory    from "@/components/BrandStory";
 import Testimonials  from "@/components/Testimonials";
 import Footer        from "@/components/Footer";
 import Navbar        from "@/components/Navbar";
+const GarageUpload   = dynamic(() => import("@/components/GarageUpload"), { ssr: false });
 
 export default function HomePage() {
   const { images, isLoaded, progress } = usePreload();
@@ -21,6 +22,7 @@ export default function HomePage() {
   // ── Global state ──────────────────────────────────────────────────────────
   const [isGarageOpen, setIsGarageOpen] = useState(false);
   const [tintColor,    setTintColor]    = useState<string | null>(null);
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
 
   // Lock / unlock body scroll
   useEffect(() => {
@@ -92,17 +94,31 @@ export default function HomePage() {
         )}
       </AnimatePresence>
 
-      {/* ── Phase 2: Garage UI — slides in after "Enter Garage" ────────────── */}
+      {/* ── Phase 2/3: Garage Experience ─────────────────────────────────── */}
       <AnimatePresence>
-        {isGarageOpen && (
-          <GarageUI
-            onColorChange={setTintColor}
+        {isGarageOpen && !uploadedImage && (
+          <GarageUpload
+            onUploadSuccess={(img) => setUploadedImage(img)}
             onClose={() => setIsGarageOpen(false)}
           />
         )}
       </AnimatePresence>
 
-      {/* ── Phase 3: Below-the-fold content (normal document flow) ─────────── */}
+      <AnimatePresence>
+        {isGarageOpen && uploadedImage && (
+          <PaintStudio
+            userImage={uploadedImage}
+            isGarageOpen={isGarageOpen}
+            onColorChange={setTintColor}
+            onClose={() => {
+              setIsGarageOpen(false);
+              setUploadedImage(null);
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ── Phase 4: Below-the-fold content (normal document flow) ─────────── */}
       {isLoaded && (
         <>
           <BrandStory />
