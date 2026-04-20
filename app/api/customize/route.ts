@@ -16,8 +16,8 @@ export async function POST(req: NextRequest) {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    // Using gemini-1.5-flash-001 for specific version compatibility
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001" });
+    // Using gemini-pro-vision for maximum compatibility across regions
+    const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
 
     // Remove the data URL prefix if present
     const base64Data = image.split(",")[1] || image;
