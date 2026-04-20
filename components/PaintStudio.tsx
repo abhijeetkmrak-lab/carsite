@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Lightbulb, Paintbrush2, Sparkles, X } from "lucide-react";
+import { Check, Lightbulb, Paintbrush2, RefreshCcw, Sparkles, X } from "lucide-react";
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import {
   BASE_QUOTE_PRICE,
@@ -40,10 +40,10 @@ const FINISHES: { id: Finish; label: string; description: string }[] = [
 export default function PaintStudio({ userImage, onClose, isGarageOpen, onColorChange }: PaintStudioProps) {
   void onColorChange;
 
-  const { user, openAuthModal } = useAuth();
+  const { user, openAuthModal, incrementRenderCount, trackPhotoSave } = useAuth();
   const [selectedColor, setSelectedColor] = useState(COLORS[2].hex);
   const [selectedFinish, setSelectedFinish] = useState<Finish>("glossy");
-  const [lightMode, setLightMode] = useState<LightMode>("white");
+  const [lightMode, setLightMode] = useState<LightMode | "sunlight">("white");
   const [isPainting, setIsPainting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [aiProcessedImage, setAiProcessedImage] = useState<string | null>(null);
@@ -57,7 +57,7 @@ export default function PaintStudio({ userImage, onClose, isGarageOpen, onColorC
     if (isLoading) return;
     setIsLoading(true);
     try {
-      const response = await fetch("/api/customise", {
+      const response = await fetch("/api/customize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -67,7 +67,7 @@ export default function PaintStudio({ userImage, onClose, isGarageOpen, onColorC
         }),
       });
       
-    const data = await response.json();
+      const data = await response.json();
       if (data.image) {
         setAiProcessedImage(data.image);
         setIsPainting(true);
@@ -78,45 +78,35 @@ export default function PaintStudio({ userImage, onClose, isGarageOpen, onColorC
       }
     } catch (error: any) {
       console.error("AI Paint Error:", error);
-      alert(`AI Painting Failed: ${error.message}. Please check your GEMINI_API_KEY in .env.local and ensure the image size is not too large.`);
+      alert(`AI Painting Failed: ${error.message}. Please check your GEMINI_API_KEY.`);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSaveConfiguration = async () => {
-    if (!user) {
-      openAuthModal();
-      return;
-    }
-    
-    setIsLoading(true);
-    try {
-      // Track the save action in Firestore
-      await trackPhotoSave();
-      
-      // Handle the actual download/save logic
-      const link = document.createElement("a");
-      link.href = aiProcessedImage || userImage;
-      link.download = `zenith-custom-${Date.now()}.png`;
-      link.click();
-      
-      alert("Configuration saved to your profile and downloaded!");
-    } catch (error) {
-      console.error("Save Error:", error);
-      alert("Failed to save configuration.");
-    } finally {
-      setIsLoading(false);
-    }
+  const handleReset = () => {
+    setAiProcessedImage(null);
+    setIsPainting(false);
+    setSelectedColor(COLORS[2].hex);
+    setSelectedFinish("glossy");
+    setLightMode("white");
   };
 
   const totalPrice = BASE_QUOTE_PRICE + FINISH_SURCHARGE[selectedFinish];
-
   const selectedFinishMeta = FINISHES.find((finish) => finish.id === selectedFinish) || FINISHES[0];
   const selectedColorMeta = COLORS.find((entry) => entry.hex === selectedColor) || COLORS[0];
+  
+  const platformGlow = useMemo(() => {
+    if (lightMode === "yellow") return "rgba(251,191,36,0.35)";
+    if (lightMode === "sunlight") return "rgba(255,245,200,0.4)";
+    return "rgba(255,255,255,0.15)";
+  }, [lightMode]);
 
-  const showroomFilter = lightMode === "yellow" ? "sepia(0.2)" : "none";
-  const platformGlow = lightMode === "yellow" ? "rgba(251,191,36,0.35)" : "rgba(255,255,255,0.15)";
+  const showroomFilter = useMemo(() => {
+    if (lightMode === "yellow") return "sepia(0.2) contrast(1.1)";
+    if (lightMode === "sunlight") return "brightness(1.1) saturate(1.1)";
+    return "none";
+  }, [lightMode]);
 
   return (
     <motion.section
@@ -144,16 +134,19 @@ export default function PaintStudio({ userImage, onClose, isGarageOpen, onColorC
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="relative z-10 flex h-full flex-col items-center justify-center px-5 pb-20 pt-20 md:px-10"
+            className="relative z-10 flex h-full flex-col items-center justify-start px-5 pb-20 pt-16 md:px-10 overflow-y-auto"
           >
-            <motion.div layoutId="paint-stage" className="relative aspect-[16/10] w-full max-w-6xl">
+            <motion.div layoutId="paint-stage" className="relative aspect-[16/10] w-full max-w-5xl shrink-0">
               <div
                 className="absolute inset-x-[9%] bottom-[8%] h-[18%] rounded-full blur-2xl"
                 style={{ background: `radial-gradient(ellipse at center, ${platformGlow} 0%, rgba(0,0,0,0) 76%)` }}
               />
               <div className="absolute inset-x-[12%] bottom-[10%] h-[14%] rounded-full border border-white/20 bg-[radial-gradient(ellipse_at_center,#1a1a1a_0%,#0d0d0d_54%,#000_100%)] shadow-[0_24px_60px_rgba(0,0,0,0.75)]" />
               
-              <div className="absolute inset-x-[14%] bottom-[15%] h-[58%] rounded-[2rem] border border-white/10 bg-black/20 overflow-hidden backdrop-blur-sm">
+              <div 
+                className="absolute inset-x-[14%] bottom-[15%] h-[58%] rounded-[2rem] border border-white/10 bg-black/20 overflow-hidden backdrop-blur-sm transition-all duration-700"
+                style={{ filter: showroomFilter }}
+              >
                 <AnimatePresence mode="wait">
                   {aiProcessedImage ? (
                     <motion.img
@@ -172,55 +165,60 @@ export default function PaintStudio({ userImage, onClose, isGarageOpen, onColorC
                       className="relative h-full w-full group"
                     >
                       <img src={userImage} className="h-full w-full object-contain opacity-80" alt="Original Car" />
-                      
-                      {/* Laser Scan Effect */}
                       <motion.div 
                         animate={{ top: ["0%", "100%", "0%"] }}
                         transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
                         className="absolute inset-x-0 z-20 h-[2px] bg-gradient-to-r from-transparent via-red-500 to-transparent shadow-[0_0_15px_#ef4444]"
                       />
-                      <div className="absolute inset-0 z-10 bg-gradient-to-b from-transparent via-red-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
             </motion.div>
 
-            {/* Lighting Toggles - Re-positioned under the car */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-8 flex items-center gap-3 rounded-full border border-white/10 bg-black/40 p-1.5 backdrop-blur-xl"
-            >
-              <button
-                onClick={() => setLightMode("white")}
-                className={
-                  "rounded-full px-5 py-2 text-[10px] uppercase tracking-[0.2em] transition-all " +
-                  (lightMode === "white" ? "bg-white text-black font-bold" : "text-white/50 hover:text-white/80")
-                }
+            {/* Showroom Lighting Menu - Placed directly below the image */}
+            {aiProcessedImage && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-6 flex flex-col items-center gap-3 shrink-0"
               >
-                White Studio
-              </button>
-              <button
-                onClick={() => setLightMode("yellow")}
-                className={
-                  "rounded-full px-5 py-2 text-[10px] uppercase tracking-[0.2em] transition-all " +
-                  (lightMode === "yellow" ? "bg-yellow-300 text-black font-bold" : "text-white/50 hover:text-white/80")
-                }
-              >
-                Warm Glow
-              </button>
-              <div className="mx-2 h-4 w-px bg-white/10" />
-              <div className="pr-4 flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-white/30">
-                <Lightbulb size={12} />
-                Atmosphere
-              </div>
-            </motion.div>
+                <p className="text-[9px] uppercase tracking-[0.4em] text-white/30 font-black">Showroom Lighting</p>
+                <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 p-2 backdrop-blur-3xl">
+                  <button
+                    onClick={() => setLightMode("white")}
+                    className={
+                      "flex items-center gap-2 rounded-xl px-5 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] transition-all " +
+                      (lightMode === "white" ? "bg-white text-black shadow-[0_10px_30px_rgba(255,255,255,0.2)]" : "text-white/40 hover:text-white/80")
+                    }
+                  >
+                    <Lightbulb size={12} />
+                    White Light
+                  </button>
+                  <button
+                    onClick={() => setLightMode("yellow")}
+                    className={
+                      "flex items-center gap-2 rounded-xl px-5 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] transition-all " +
+                      (lightMode === "yellow" ? "bg-yellow-400 text-black shadow-[0_10px_30px_rgba(250,204,21,0.2)]" : "text-white/40 hover:text-white/80")
+                    }
+                  >
+                    <Sparkles size={12} />
+                    Warm Light
+                  </button>
+                  <button
+                    onClick={() => setLightMode("sunlight")}
+                    className={
+                      "flex items-center gap-2 rounded-xl px-5 py-2.5 text-[9px] font-black uppercase tracking-[0.2em] transition-all " +
+                      (lightMode === "sunlight" ? "bg-orange-500 text-black shadow-[0_10px_30px_rgba(249,115,22,0.2)]" : "text-white/40 hover:text-white/80")
+                    }
+                  >
+                    <Sparkles size={12} />
+                    Sunlight
+                  </button>
+                </div>
+              </motion.div>
+            )}
           </motion.div>
-
-          {lightMode === "yellow" && (
-            <div className="pointer-events-none absolute inset-0 z-20 bg-[radial-gradient(circle_at_50%_45%,rgba(251,191,36,0.05)_0%,rgba(251,191,36,0.01)_32%,transparent_74%)]" />
-          )}
 
           <div className="absolute left-6 top-6 z-30 md:left-8 md:top-8">
             <button
@@ -252,20 +250,13 @@ export default function PaintStudio({ userImage, onClose, isGarageOpen, onColorC
                       <button
                         key={entry.hex}
                         onClick={() => setSelectedColor(entry.hex)}
-                        title={entry.name}
                         className={
                           "relative h-10 w-10 rounded-full border transition " +
-                          (selectedColor === entry.hex
-                            ? "scale-110 border-white/70"
-                            : "border-white/10 opacity-70 hover:opacity-100")
+                          (selectedColor === entry.hex ? "scale-110 border-white/70" : "border-white/10 opacity-70 hover:opacity-100")
                         }
                         style={{ background: entry.hex }}
                       >
-                        {selectedColor === entry.hex && (
-                          <span className="absolute inset-0 grid place-items-center text-white">
-                            <Check size={15} />
-                          </span>
-                        )}
+                        {selectedColor === entry.hex && <Check size={15} className="absolute inset-0 m-auto text-white" />}
                       </button>
                     ))}
                   </div>
@@ -280,24 +271,15 @@ export default function PaintStudio({ userImage, onClose, isGarageOpen, onColorC
                         onClick={() => setSelectedFinish(finish.id)}
                         className={
                           "w-full rounded-2xl border px-4 py-3 text-left transition " +
-                          (selectedFinish === finish.id
-                            ? "border-white/30 bg-white/10"
-                            : "border-white/10 bg-white/[0.03] hover:border-white/20")
+                          (selectedFinish === finish.id ? "border-white/30 bg-white/10" : "border-white/10 bg-white/[0.03] hover:border-white/20")
                         }
                       >
                         <p className="text-sm font-bold uppercase tracking-[0.14em] text-white">{finish.label}</p>
                         <p className="mt-1 text-xs text-white/45">{finish.description}</p>
-                        <p className="mt-2 text-[11px] text-white/70">
-                          {FINISH_SURCHARGE[finish.id]
-                            ? `+$${FINISH_SURCHARGE[finish.id].toLocaleString()}`
-                            : "Included"}
-                        </p>
                       </button>
                     ))}
                   </div>
                 </section>
-
-
               </div>
             </motion.aside>
           )}
@@ -313,11 +295,7 @@ export default function PaintStudio({ userImage, onClose, isGarageOpen, onColorC
             className="fixed inset-0 z-[1000] flex flex-col items-center justify-center bg-black/80 backdrop-blur-xl"
           >
             <div className="h-64 w-64">
-              <DotLottieReact
-                src="/Loading animation/Loading 49 _ Car Types.lottie"
-                loop
-                autoplay
-              />
+              <DotLottieReact src="/Loading animation/Loading 49 _ Car Types.lottie" loop autoplay />
             </div>
             <motion.p 
               animate={{ opacity: [0.4, 1, 0.4] }}
@@ -330,71 +308,47 @@ export default function PaintStudio({ userImage, onClose, isGarageOpen, onColorC
         )}
       </AnimatePresence>
 
-      <section className="h-[34vh] shrink-0 overflow-y-auto border-t border-white/10 bg-[#0c0c0c] px-6 py-6 md:px-10">
-        <div className="mx-auto max-w-6xl">
-          <p className="text-[10px] uppercase tracking-[0.3em] text-white/35">Final Quotation</p>
-          <div className="mt-4 grid grid-cols-1 gap-5 text-sm text-white/80 md:grid-cols-4">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-white/35">Base Vehicle</p>
-              <p className="mt-2 text-xl font-bold text-white">₹{BASE_QUOTE_PRICE.toLocaleString()}</p>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-white/35">Finish Selected</p>
-              <p className="mt-2 text-xl font-bold text-white">{selectedFinishMeta.label}</p>
-              <p className="mt-1 text-sm text-white/60">+₹{FINISH_SURCHARGE[selectedFinish].toLocaleString()}</p>
-            </div>
-            <div className="rounded-2xl border border-red-500/30 bg-red-950/25 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-red-300/70">Total Estimate</p>
-              <motion.p
-                key={totalPrice}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mt-2 text-3xl font-black text-white"
-              >
-                ₹{totalPrice.toLocaleString()}
-              </motion.p>
-              <p className="mt-1 text-xs text-white/60">{selectedColorMeta.name} / {selectedFinishMeta.label} configuration.</p>
-            </div>
-            <div className="flex items-center">
-            <div className="flex items-center justify-end md:col-span-1">
-              <div className="flex gap-4">
-                <button
-                  onClick={handleSaveConfiguration}
-                  className="group flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-6 py-4 transition-all hover:border-white/30 hover:bg-white/10"
-                >
-                  <Sparkles size={18} className="text-red-500" />
-                  <span className="text-xs font-black uppercase tracking-[0.2em] text-white">Save Config</span>
-                </button>
-                <button
-                  onClick={() => {
-                    if (aiProcessedImage) {
-                      setAiProcessedImage(null);
-                      setIsPainting(false);
-                    } else {
-                      incrementRenderCount();
-                      handlePaint();
-                    }
-                  }}
-                  disabled={isLoading}
-                  className="group flex items-center gap-3 rounded-2xl bg-red-600 px-8 py-4 transition-all hover:bg-red-500 hover:shadow-[0_0_30px_rgba(239,68,68,0.4)] disabled:opacity-50"
-                >
-                  <Paintbrush2 size={18} className="text-white" />
-                  <span className="text-xs font-black uppercase tracking-[0.2em] text-white">
-                    {isLoading ? "Painting..." : aiProcessedImage ? "Choose Another Color" : "Paint My Car"}
-                  </span>
-                </button>
-              </div>
+      <section className="h-[18vh] shrink-0 border-t border-white/10 bg-[#0c0c0c] px-6 py-4 md:px-10">
+        <div className="mx-auto max-w-6xl flex flex-col md:flex-row items-center justify-between gap-6 h-full">
+          <div className="shrink-0">
+            <p className="text-[9px] uppercase tracking-[0.3em] text-white/35">Base Vehicle</p>
+            <p className="mt-1 text-lg font-bold text-white">₹{BASE_QUOTE_PRICE.toLocaleString()}</p>
+          </div>
+          
+          <div className="shrink-0">
+            <p className="text-[9px] uppercase tracking-[0.3em] text-white/35">Finish Selected</p>
+            <div className="flex items-baseline gap-2">
+              <p className="mt-1 text-lg font-bold text-white">{selectedFinishMeta.label}</p>
+              <p className="text-[10px] text-white/40">+₹{FINISH_SURCHARGE[selectedFinish].toLocaleString()}</p>
             </div>
           </div>
-          <div className="mt-4 text-xs uppercase tracking-[0.24em] text-white/45">
-            <span className="inline-flex items-center gap-2">
-              <Sparkles size={12} /> Precision paint mode active on isolated car body
-            </span>
+          
+          <div className="rounded-xl border border-red-500/20 bg-red-950/15 px-6 py-3 min-w-[200px]">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-red-300/70">Total Estimate</p>
+            <p className="mt-1 text-2xl font-black text-white">₹{totalPrice.toLocaleString()}</p>
+          </div>
+          
+          <div className="flex items-center gap-4 ml-auto">
+            <button
+              onClick={handleReset}
+              className="group flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-5 py-3 transition-all hover:border-white/30 hover:bg-white/10"
+            >
+              <RefreshCcw size={14} className="text-white/60 group-hover:rotate-180 transition-transform duration-500" />
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white">Reset</span>
+            </button>
+            <button
+              onClick={handlePaint}
+              disabled={isLoading}
+              className="group flex items-center gap-3 rounded-xl bg-red-600 px-7 py-3 transition-all hover:bg-red-500 hover:shadow-[0_0_40px_rgba(239,68,68,0.3)] disabled:opacity-50"
+            >
+              <Paintbrush2 size={16} className="text-white" />
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white">
+                {isLoading ? "Painting..." : aiProcessedImage ? "New Paint" : "Paint My Car"}
+              </span>
+            </button>
           </div>
         </div>
       </section>
     </motion.section>
   );
 }
-
-
