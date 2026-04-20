@@ -16,8 +16,8 @@ export async function POST(req: NextRequest) {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    // Using gemini-pro-vision for maximum compatibility across regions
-    const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
+    // Using the 3.1 flash image preview as requested
+    const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-image-preview" });
 
     // Remove the data URL prefix if present
     const base64Data = image.split(",")[1] || image;
